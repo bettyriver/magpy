@@ -36,7 +36,8 @@ def mof_to_gauss(alpha,beta,plot=False):
     xdata = np.vstack((xx.ravel(),yy.ravel()))
     ydata = t1.ravel()
     
-    popt, pcov = curve_fit(f=two_gaussian,xdata=xdata,ydata=ydata)
+    popt, pcov = curve_fit(f=two_gaussian,xdata=xdata,ydata=ydata,
+                           bounds=([0,0,0,0],[np.inf,np.inf,np.inf,np.inf]))
     
     t2 = two_gaussian(xdata,popt[0],popt[1],popt[2],popt[3]).reshape(1000,1000)
     

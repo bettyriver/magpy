@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""pre-process magpi data
-
-@author: Yifan Mai
 """
+Created on Wed Jun  1 12:12:47 2022
+
+backup of preblobby3d before fix the x, y bug....QAQ Oh My God!
+
+@author: ymai0110
+"""
+
+
 
 from astropy.io import fits
 import numpy as np
@@ -48,16 +53,17 @@ class PreBlobby3D:
         self.fitsname = fitsname
         self.fitsdata = fits.open(dirpath + fitsname)
         self.emidata = fits.open(emipath+eminame)
-        self.ha_flux = self.emidata['Ha_F'].data # extension 47
-        self.ha_err = self.emidata['Ha_FERR'].data # extension 48
+        self.ha_flux = np.transpose(self.emidata['Ha_F'].data,axes=(1,0)) # extension 47
+        self.ha_err = np.transpose(self.emidata['Ha_FERR'].data,axes=(1,0)) # extension 48
         self.ha_sn = self.ha_flux/self.ha_err
         
         self.data1 = self.fitsdata[1].data
-        # datacube is (wavelength, yaxis, xaxis)
-        self.flux = self.data1
+        # datacube is (wavelength, yaxis, xaxis), use transpose to have 
+        # (wavelength, xaxis, yaxis)
+        self.flux = np.transpose(self.data1,axes=(0,2,1))
         
         self.data2 = self.fitsdata[2].data
-        self.var = self.data2
+        self.var = np.transpose(self.data2,axes=(0,2,1))
         
         self.cubeshape = self.flux.shape
         self.magpiid = fitsname[5:15]
@@ -78,10 +84,10 @@ class PreBlobby3D:
         self.HD1 = self.fitsdata[1].header
         HD1 = self.HD1
         self.nx = HD1['NAXIS1']
-        self.x_del = HD1['CD1_1']
+        x_del = HD1['CD1_1']
         x_crpix = HD1['CRPIX1']
         self.ny = HD1['NAXIS2']
-        self.y_del = HD1['CD2_2']
+        y_del = HD1['CD2_2']
         y_crpix = HD1['CRPIX2']
 
         wavelength_crpix = HD1['CRPIX3']
@@ -94,17 +100,16 @@ class PreBlobby3D:
         # The data is assumed to be de-redshifted 
         # and centred about (0, 0) spatial coordinates.
 
-        self.x_pix_range_sec = (np.arange(0,self.nx)+1-x_crpix)*self.x_del*3600
+        self.x_pix_range_sec = (np.arange(0,self.nx)+1-x_crpix)*x_del*3600
         self.x_pix_range = self.x_pix_range_sec - (self.x_pix_range_sec[0]+self.x_pix_range_sec[-1])/2
 
-        self.y_pix_range_sec = (np.arange(0,self.ny)+1-y_crpix)*self.y_del*3600
+        self.y_pix_range_sec = (np.arange(0,self.ny)+1-y_crpix)*y_del*3600
         self.y_pix_range = self.y_pix_range_sec - (self.y_pix_range_sec[0]+self.y_pix_range_sec[-1])/2
         self.flux_scale_factor = 1
         
         # todo 
-        self.conti_path = conti_path
-        conti_fits = fits.open(conti_path)
-        self.conti_spec = conti_fits[3].data - conti_fits[4].data
+        #conti_fits = fits.open(conti_path)
+        
             
     
     def plot_interg_flux(self,snlim,xlim=None, ylim=None, wavelim=None,
@@ -139,13 +144,30 @@ class PreBlobby3D:
         ha_sn_low = ha_sn_cut < snlim
         ha_sn_high = ha_sn_cut >= snlim
         
+        x_mask = np.full(self.nx,True)
+        y_mask = np.full(self.ny,True)
         
+        
+        
+        if xlim is not None:
+            x_values = np.arange(self.nx)
+            x_mask = (x_values >= xlim[0]) & (x_values <= xlim[1])
+        if ylim is not None:
+            y_values = np.arange(self.ny)
+            y_mask = (y_values >= ylim[0]) & (y_values <= ylim[1])
+        
+        xx = np.arange(self.nx)[x_mask]
+        yy = np.arange(self.ny)[y_mask]
+        
+        xpos,ypos = np.meshgrid(xx,yy)
+        xpos = xpos.T
+        ypos = ypos.T
         
         sn_diagram = np.zeros(ha_sn_cut.shape)
         sn_diagram[ha_sn_high] = 1
         
         fig, axs = plt.subplots(1,3)
-        
+        print(xpos.shape)
         print(ha_sn_cut.shape)
         fig.suptitle(self.magpiid)
         axs[0].imshow(interg_flux)
@@ -181,11 +203,10 @@ class PreBlobby3D:
                 y_mask = (y_values >= ylim[0]) & (y_values <= ylim[1])
             
             if self.wave_axis == 0:
-                cutoutdata = data[wavelength_mask,:,:][:, y_mask, :][:, :, x_mask]
+                cutoutdata = data[wavelength_mask,:,:][:, x_mask, :][:, :, y_mask]
                 
-            # I think it's wrong... not need to think about it at this time...
-            #if self.wave_axis == 2:
-            #    cutoutdata = data[:, x_mask, :][:, :, y_mask][wavelength_mask,:,:]
+            if self.wave_axis == 2:
+                cutoutdata = data[:, x_mask, :][:, :, y_mask][wavelength_mask,:,:]
         if dim == 2:
             if xlim is not None:
                 x_values = np.arange(self.nx)
@@ -194,7 +215,7 @@ class PreBlobby3D:
                 y_values = np.arange(self.ny)
                 y_mask = (y_values >= ylim[0]) & (y_values <= ylim[1])
             
-            cutoutdata = data[ y_mask, :][ :, x_mask]
+            cutoutdata = data[ x_mask, :][ :, y_mask]
         
         
         return cutoutdata
@@ -208,22 +229,15 @@ class PreBlobby3D:
     def cutout_data(self, snlim=None,xlim=None, ylim=None, wavelim=None, scale_flux=False,
                     subtract_continuum=False):
         
-        
-        if subtract_continuum == True:
-            if self.conti_path == None:
-                print("No continuum available")
-                return 0
-            flux_subtracted = self.flux - self.conti_spec
-        
-        flux_mask,var_mask = self.sn_cut(snlim=3, data=flux_subtracted, var=self.var)
+        flux_mask,var_mask = self.sn_cut(snlim=3, data=self.flux, var=self.var)
         
         
         flux_scale_factor = 1
         if scale_flux is True:
             if self.wave_axis == 0:
-                flux_scale_factor = (np.nanmedian(self.flux[:,int(self.ny/2),int(self.nx/2)])*10)
+                flux_scale_factor = (np.nanmedian(self.flux[:,int(self.nx/2),int(self.ny/2)])*10)
             if self.wave_axis == 2:
-                flux_scale_factor = (np.nanmedian(self.flux[int(self.ny/2),int(self.nx/2),:])*10)
+                flux_scale_factor = (np.nanmedian(self.flux[int(self.nx/2),int(self.ny/2),:])*10)
         
         
         cutoutdata = self.cutout(data=flux_mask,dim=3,xlim=xlim,ylim=ylim,wavelim=wavelim)
@@ -265,9 +279,9 @@ class PreBlobby3D:
         
         
 
-        metadata = np.array([cutout_ny,cutout_nx,cutout_nw,
-                             -self.x_pix_range[x_mask][0]+1/2*self.x_del*3600,-self.x_pix_range[x_mask][-1]-1/2*self.x_del*3600,
-                             self.y_pix_range[y_mask][0]-1/2*self.y_del*3600,self.y_pix_range[y_mask][-1]+1/2*self.y_del*3600,
+        metadata = np.array([cutout_nx,cutout_ny,cutout_nw,
+                             -self.x_pix_range[x_mask][0],-self.x_pix_range[x_mask][-1],
+                             self.y_pix_range[y_mask][0],self.y_pix_range[y_mask][-1],
                              self.Wavelengths_deredshift[wavelength_mask][0]-1/2*self.wavelength_del_Wav/(1+self.magpiredshift),
                              self.Wavelengths_deredshift[wavelength_mask][-1]+1/2*self.wavelength_del_Wav/(1+self.magpiredshift)])
         
@@ -316,11 +330,11 @@ class PreBlobby3D:
         metadata = Metadata(self.save_path+"metadata.txt")
         data = np.loadtxt(self.save_path+"data.txt")
         var = np.loadtxt(self.save_path+"var.txt")
-        nx = metadata.naxis[1]
-        ny = metadata.naxis[0]
+        nx = metadata.naxis[0]
+        ny = metadata.naxis[1]
         nw = metadata.naxis[2]
-        data3d = data.reshape(ny,nx,nw)
-        plt.plot(data3d[ypix,xpix,:])
+        data3d = data.reshape(nx,ny,nw)
+        plt.plot(data3d[xpix,ypix,:])
         plt.show()
 
     def model_options(self,inc_path):
