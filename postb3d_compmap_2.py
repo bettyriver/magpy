@@ -86,7 +86,7 @@ def make_compmap(datapath):
     res_vdisp = data_vdisp - con_vdisp
     
     
-    fig,ax = setup_comparison_maps(comp_shape=(3,3), map_shape=(41,41), figsize=(15,20))
+    fig,ax = setup_comparison_maps(comp_shape=(3,3), map_shape=(21,21), figsize=(15,20))
     flux_max = np.nanmax(con_flux)
     flux_min = np.nanmin(con_flux)
     vel_max = np.nanmax(con_vel)
@@ -137,9 +137,16 @@ def make_compmap(datapath):
     mpb1 = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=vel_lim[0],vmax=vel_lim[1]),cmap=cmap.v)
     mpb2 = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=vdisp_lim[0],vmax=vdisp_lim[1]),cmap=cmap.vdisp)
     
-    colorbar(mpb0,cax=ax[0][3],clim=flux_ha_lim)
-    colorbar(mpb1,cax=ax[1][3],clim=vel_lim)
-    colorbar(mpb2,cax=ax[2][3],clim=vdisp_lim)
+    colorbar(mpb0,cax=ax[0][3],clim=flux_ha_lim,label='log(Flux(Ha))')
+    colorbar(mpb1,cax=ax[1][3],clim=vel_lim,label='$v$(km/s)')
+    colorbar(mpb2,cax=ax[2][3],clim=vdisp_lim,label='$\sigma_v$(km/s)')
+    
+    fwhm = 0.996
+    circle = plt.Circle(
+            (1.1*fwhm, 1.1*fwhm),
+            radius=fwhm,
+            fill=False, edgecolor='r', linewidth=1.0)
+    ax[0][2].add_artist(circle)
     
     #plot_colorbar(ax[0][3])
     #plot_colorbar(ax[1][3])

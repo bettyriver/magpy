@@ -12,6 +12,7 @@ import pandas
 from meta import Metadata
 from reconstructLSF import reconstruct_lsf
 import fit_two_gaussian_from_moffat as mofgauFit
+from BPT import bptregion
 
 class PreBlobby3D:
     
@@ -107,8 +108,7 @@ class PreBlobby3D:
         self.conti_spec = conti_fits[3].data - conti_fits[4].data
             
     
-    def plot_interg_flux(self,snlim,xlim=None, ylim=None, wavelim=None,
-                         scale_flux=False,subtract_continuum=False):
+    def plot_interg_flux(self,snlim,xlim=None, ylim=None, **kwargs):
         """
         
 
@@ -127,9 +127,7 @@ class PreBlobby3D:
 
         """
         cutoutdata, cutoutvar, metadata = self.cutout_data(xlim=xlim, ylim=ylim,
-                                                        wavelim=wavelim, 
-                                                        scale_flux=scale_flux,
-                                                        subtract_continuum=subtract_continuum)
+                                                        **kwargs)
         
         interg_flux = np.nansum(cutoutdata.reshape(int(metadata[0]),int(metadata[1]),int(metadata[2])),axis=2)
         
@@ -206,7 +204,15 @@ class PreBlobby3D:
         return data, var
     
     def cutout_data(self, snlim=None,xlim=None, ylim=None, wavelim=None, scale_flux=False,
-                    subtract_continuum=False):
+                    subtract_continuum=False,mask_center=False,mask_center_pix=None,mask_radius=None,
+                    AGN_mask=False,comp_mask=False,niiha_mask=False):
+        
+        ''' mask_center, mask_center_pix, mask_radius is for mask a circular region at the center
+        AGN_mask is mask AGN region based on bpt map
+        comp_mask is mask composite region based on bpt map
+        niiha_mask mask log(nii/ha) > 0.1 , these pixels definitely AGN
+        '''
+        
         
         
         if subtract_continuum == True:
@@ -216,6 +222,94 @@ class PreBlobby3D:
             flux_subtracted = self.flux - self.conti_spec
         
         flux_mask,var_mask = self.sn_cut(snlim=3, data=flux_subtracted, var=self.var)
+        
+        if AGN_mask or comp_mask:
+            
+            ### read data ####
+            dmap = self.emidata
+            ha = dmap['Ha_F'].data
+            ha_err = dmap['Ha_FERR'].data
+            ha_snr = ha/ha_err
+            
+            nii = dmap['NII_6585_F'].data
+            nii_err = dmap['NII_6585_FERR'].data
+            nii_snr = nii/nii_err
+            
+            oiii = dmap['OIII_5008_F'].data
+            oiii_err = dmap['OIII_5008_FERR'].data
+            oiii_snr = oiii/oiii_err
+            
+            hb = dmap['Hb_F'].data
+            hb_err = dmap['Hb_FERR'].data
+            hb_snr = hb/hb_err
+            
+            crit_err = (ha_err > 0) & (nii_err > 0)&(oiii_err > 0)&(hb_err > 0)
+            crit_snr = (ha_snr > 3) &(hb_snr>3)&(nii_snr>3)&(oiii_snr>3)
+            indplot =  crit_err & crit_snr
+            
+            x = np.log10(nii/ha)
+            y = np.log10(oiii/hb)
+            
+            ##constrction construction coordinates###
+            nx = (np.arange(ha.shape[1]) - ha.shape[1]/2)/5.
+            ny = (np.arange(ha.shape[0]) - ha.shape[0]/2)/5.
+            xpos, ypos = np.meshgrid(nx, ny, sparse=False, indexing='xy')
+            
+            x_type = np.full_like(xpos, np.nan)
+            y_type = np.full_like(xpos, np.nan)
+            x_type[indplot] = x[indplot]
+            y_type[indplot] = y[indplot]
+            AGN, CP, SF, *not_need= bptregion(x_type, y_type, mode='N2')
+            
+            if AGN_mask:
+                ## mask AGN region
+                flux_mask[:,AGN] = 0
+                var_mask[:,AGN] = 0
+            if comp_mask:
+                ## mask composite region
+                flux_mask[:,CP] = 0
+                var_mask[:,CP] = 0
+        
+        if niiha_mask:
+            ### read data ####
+            dmap = self.emidata
+            ha = dmap['Ha_F'].data
+            ha_err = dmap['Ha_FERR'].data
+            ha_snr = ha/ha_err
+            
+            nii = dmap['NII_6585_F'].data
+            nii_err = dmap['NII_6585_FERR'].data
+            nii_snr = nii/nii_err
+            
+            crit_err = (ha_err > 0) & (nii_err > 0)
+            crit_snr = (ha_snr > 3) &(nii_snr>3)
+            indplot =  crit_err & crit_snr
+            log_niiha = np.log10(nii/ha)
+            
+            niiha_mask_region = (log_niiha > 0.1) & (indplot)
+            
+            ## mask 
+            flux_mask[:,niiha_mask_region] = 0
+            var_mask[:,niiha_mask_region] = 0
+        
+        
+        
+        if mask_center==True:
+            mask_outflow = np.full_like(self.ha_sn,False,dtype=bool)
+            total_rows, total_cols = mask_outflow.shape
+            #center_row, center_col = total_rows/2, total_cols/2
+            integ_flux = np.nansum(flux_mask,axis=0)
+            center_row, center_col = np.unravel_index(np.argmax(integ_flux),integ_flux.shape)
+            
+            if mask_center_pix is not None:
+                center_row, center_col = mask_center_pix
+            X, Y = np.ogrid[:total_rows, :total_cols]
+            dist_from_center = np.sqrt((X - center_row)**2 + (Y-center_col)**2)
+            circular_mask = (dist_from_center < mask_radius)
+            flux_mask[:,circular_mask] = 0
+            var_mask[:,circular_mask] = 0
+            
+        
         
         
         flux_scale_factor = 1
@@ -323,15 +417,17 @@ class PreBlobby3D:
         plt.plot(data3d[ypix,xpix,:])
         plt.show()
 
-    def model_options(self,inc_path):
+    def model_options(self,inc_path,flat_vdisp=False):
         modelfile = open(self.save_path+"MODEL_OPTIONS","w")
         # first line
         modelfile.write('# Specify model options\n')
         # LSFFWHM
+        # reconstruct return sigma
         lsf_recon = reconstruct_lsf(wavelengths=6563*(1+self.magpiredshift), 
                         resolution_file=self.dirpath + self.fitsname)
         lsf_deredshift = lsf_recon/(1+self.magpiredshift)
-        modelfile.write('LSFFWHM\t%.3f\n'%(lsf_deredshift))
+        lsf_fwhm = 2*np.sqrt(2*np.log(2))*lsf_deredshift
+        modelfile.write('LSFFWHM\t%.4f\n'%(lsf_fwhm))
         
         #PSF
         psfhdr = self.fitsdata[4].header
@@ -353,7 +449,30 @@ class PreBlobby3D:
         
         modelfile.write('INC\t%f\n'%(inc))
         modelfile.write('LINE\t6562.81\n')
-        modelfile.write('LINE\t6583.1\t6548.1\t0.333')
+        modelfile.write('LINE\t6583.1\t6548.1\t0.333\n')
+        if flat_vdisp == True:
+            modelfile.write('VDISPN_SIGMA\t1.000000e-09')
         
         modelfile.close()
+        
+    def try_sth(self,w):
+        print('hello')
+        
+    def get_flux_scale_factor(self):
+        flux_scale_factor_1 = (np.nanmedian(self.flux[:,int(self.ny/2),int(self.nx/2)])*10)
+        return flux_scale_factor_1
+    
+    def get_fwhm_highweight(self):
+        #PSF
+        psfhdr = self.fitsdata[4].header
+        # note that the datacubes have mistake, alpha is beta , beta is alpha
+        beta = psfhdr['MAGPI PSF ZBAND MOFFAT ALPHA']
+        alpha = psfhdr['MAGPI PSF ZBAND MOFFAT BETA']
+        
+        weight1, weight2, fwhm1, fwhm2 = mofgauFit.mof_to_gauss(alpha=alpha, 
+                                                                beta=beta)
+        if weight1 > weight2:
+            return fwhm1
+        else:
+            return fwhm2
         

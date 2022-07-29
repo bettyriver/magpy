@@ -61,7 +61,7 @@ def postprocess(temperature=1., numResampleLogX=1, plot=True, loaded=[], \
 		xlim = plt.gca().get_xlim()
 		plt.axhline(-1., color='g')
 		plt.axhline(-np.log(10.), color='g', linestyle="--")
-		plt.ylim(top=0.05);plt.savefig("compression.pdf",bbox_inches='tight')
+		plt.ylim(top=0.05)
 
 		plt.subplot(2,1,2)
 		good = np.nonzero(levels_orig[:,4] > 0)[0]
@@ -172,7 +172,7 @@ def postprocess(temperature=1., numResampleLogX=1, plot=True, loaded=[], \
 			plt.plot(logx_samples[:,z], P_samples[:,z], 'k.')
 			plt.ylabel('Posterior Weights')
 			plt.xlabel('log(X)')
-			plt.xlim(xlim)
+			plt.xlim(xlim);plt.savefig("posterior_weights.pdf",bbox_inches='tight')
 
 	# Log prior weights
 	logp_samples_averaged = np.empty(len(P_samples))
