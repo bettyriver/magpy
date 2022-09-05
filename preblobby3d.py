@@ -13,6 +13,7 @@ from meta import Metadata
 from reconstructLSF import reconstruct_lsf
 import fit_two_gaussian_from_moffat as mofgauFit
 from BPT import bptregion
+import copy
 
 class PreBlobby3D:
     
@@ -205,12 +206,16 @@ class PreBlobby3D:
     
     def cutout_data(self, snlim=None,xlim=None, ylim=None, wavelim=None, scale_flux=False,
                     subtract_continuum=False,mask_center=False,mask_center_pix=None,mask_radius=None,
-                    AGN_mask=False,comp_mask=False,niiha_mask=False):
+                    AGN_mask=False,AGN_mask_exp=None,comp_mask=False,niiha_mask=False):
         
         ''' mask_center, mask_center_pix, mask_radius is for mask a circular region at the center
         AGN_mask is mask AGN region based on bpt map
+        AGN_mask_exp is expand the AGN mask region, int
         comp_mask is mask composite region based on bpt map
         niiha_mask mask log(nii/ha) > 0.1 , these pixels definitely AGN
+        
+        
+        
         '''
         
         
@@ -269,6 +274,13 @@ class PreBlobby3D:
                 ## mask composite region
                 flux_mask[:,CP] = 0
                 var_mask[:,CP] = 0
+            if AGN_mask_exp is not None:
+                yyy, xxx = np.meshgrid(np.arange(ha.shape[1]),np.arange(ha.shape[0]))
+                AGN_E = copy.copy(AGN)
+                for xx, yy in zip(xxx[AGN],yyy[AGN]):
+                    AGN_E[xx-AGN_mask_exp:xx+AGN_mask_exp,yy-AGN_mask_exp:yy+AGN_mask_exp] = True
+                flux_mask[:,AGN_E] = 0
+                var_mask[:,AGN_E] = 0
         
         if niiha_mask:
             ### read data ####
@@ -417,7 +429,7 @@ class PreBlobby3D:
         plt.plot(data3d[ypix,xpix,:])
         plt.show()
 
-    def model_options(self,inc_path,flat_vdisp=False):
+    def model_options(self,inc_path,flat_vdisp=True,psfimg=True,band='z',gaussian=2):
         modelfile = open(self.save_path+"MODEL_OPTIONS","w")
         # first line
         modelfile.write('# Specify model options\n')
@@ -429,16 +441,35 @@ class PreBlobby3D:
         lsf_fwhm = 2*np.sqrt(2*np.log(2))*lsf_deredshift
         modelfile.write('LSFFWHM\t%.4f\n'%(lsf_fwhm))
         
-        #PSF
-        psfhdr = self.fitsdata[4].header
-        # note that the datacubes have mistake, alpha is beta , beta is alpha
-        beta = psfhdr['MAGPI PSF ZBAND MOFFAT ALPHA']
-        alpha = psfhdr['MAGPI PSF ZBAND MOFFAT BETA']
-        
-        weight1, weight2, fwhm1, fwhm2 = mofgauFit.mof_to_gauss(alpha=alpha, 
-                                                                beta=beta)
-        modelfile.write('PSFWEIGHT\t%f %f\n'%(weight1,weight2))
-        modelfile.write('PSFFWHM\t%f %f\n'%(fwhm1,fwhm2))
+        if psfimg==True:
+            # default z-band
+            img = self.fitsdata[4].data[3]
+            
+            if gaussian==2:
+                weight1, weight2, fwhm1, fwhm2 = mofgauFit.psf_img_to_gauss(img)
+                
+                modelfile.write('PSFWEIGHT\t%f %f\n'%(weight1,weight2))
+                modelfile.write('PSFFWHM\t%f %f\n'%(fwhm1,fwhm2))
+            if gaussian==3:
+                weight1, weight2, weight3, fwhm1, fwhm2 ,fwhm3= mofgauFit.psf_img_to_gauss_three(img)
+                
+                modelfile.write('PSFWEIGHT\t%f %f %f\n'%(weight1,weight2,weight3))
+                modelfile.write('PSFFWHM\t%f %f %f\n'%(fwhm1,fwhm2,fwhm3))
+                
+                
+                
+                
+        else:
+            #PSF
+            psfhdr = self.fitsdata[4].header
+            # note that the datacubes have mistake, alpha is beta , beta is alpha
+            beta = psfhdr['MAGPI PSF ZBAND MOFFAT ALPHA']
+            alpha = psfhdr['MAGPI PSF ZBAND MOFFAT BETA']
+            
+            weight1, weight2, fwhm1, fwhm2 = mofgauFit.mof_to_gauss(alpha=alpha, 
+                                                                    beta=beta)
+            modelfile.write('PSFWEIGHT\t%f %f\n'%(weight1,weight2))
+            modelfile.write('PSFFWHM\t%f %f\n'%(fwhm1,fwhm2))
         
         # inclination
         inc_data =  pandas.read_csv(inc_path)

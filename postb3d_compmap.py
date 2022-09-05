@@ -35,9 +35,9 @@ def make_compmap(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=Fa
             lines=[[6562.81], [6583.1, 6548.1, 0.3333]],
             lsf_fwhm=0.846,)
     wave = post_b3d.metadata.get_axis_array('r')
-    fit_con, fit_err_con = sm.fit_cube(wave, post_b3d.con_cubes[sample], post_b3d.var)
+    fit_con, fit_var_con = sm.fit_cube(wave, post_b3d.con_cubes[sample], post_b3d.var)
     
-    fit_data, fit_err_data = sm.fit_cube(wave, post_b3d.data, post_b3d.var)
+    fit_data, fit_var_data = sm.fit_cube(wave, post_b3d.data, post_b3d.var)
     
     
     
@@ -63,6 +63,10 @@ def make_compmap(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=Fa
     con_nii_ha = con_flux_nii/con_flux_ha
     con_vel = fit_con[2]
     con_vdisp = fit_con[3]
+    
+    ## flux_err
+    con_flux_ha_err = np.sqrt(fit_var_con[0]*(flux_scale_factor**2))
+    con_flux_nii_err = np.sqrt(fit_var_con[1]*(flux_scale_factor**2))
     
     # data 
     
@@ -94,10 +98,10 @@ def make_compmap(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=Fa
     data_vdisp[mask] = np.nan
     
     # residual
-    res_flux_ha = data_flux_ha - con_flux_ha
+    res_flux_ha = (data_flux_ha - con_flux_ha)/con_flux_ha_err
     res_vel = data_vel - con_vel
     res_vdisp = data_vdisp - con_vdisp
-    res_flux_nii = data_flux_nii - con_flux_nii
+    res_flux_nii = (data_flux_nii - con_flux_nii)/con_flux_nii_err
     res_nii_ha = data_nii_ha - con_nii_ha
     
     
@@ -182,7 +186,7 @@ def make_compmap(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=Fa
     plot_map(ax[ii+2][1],con_vdisp,clim=vdisp_lim,cmap=cmap.vdisp)
     plot_map(ax[ii+2][2],data_vdisp,clim=vdisp_lim,cmap=cmap.vdisp,cbar_label='$\sigma_v$(km/s)')
     
-    plot_map(ax[0][4], res_flux_ha,clim=res_flux_ha_lim,cbar_label='$\Delta$Flux',cmap=cmap.residuals,title='residual')
+    plot_map(ax[0][4], res_flux_ha,clim=res_flux_ha_lim,cbar_label='$\Delta$Flux/$\sigma_{F(H\alpha)}$',cmap=cmap.residuals,title='residual')
     if plot_nii == True:
         plot_map(ax[1][4], res_flux_nii,clim=res_flux_nii_lim,cmap=cmap.residuals)
         plot_map(ax[2][4], res_nii_ha,clim=res_nii_ha_lim,cmap=cmap.residuals)
@@ -212,11 +216,11 @@ def make_compmap(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=Fa
     res_mpb3 = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=res_flux_nii_lim[0],vmax=res_flux_nii_lim[1]),cmap=cmap.residuals)
     res_mpb4 = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=res_nii_ha_lim[0],vmax=res_nii_ha_lim[1]),cmap=cmap.residuals)
     
-    colorbar(res_mpb0,cax=ax[0][5],clim=res_flux_ha_lim,label='$\Delta$ (Flux(Ha))')
+    colorbar(res_mpb0,cax=ax[0][5],clim=res_flux_ha_lim,label='$\Delta F(H\alpha)/\sigma_{F(H\alpha)}$')
     colorbar(res_mpb1,cax=ax[ii+1][5],clim=res_vel_lim,label='$\Delta v$(km/s)')
     colorbar(res_mpb2,cax=ax[ii+2][5],clim=res_vdisp_lim,label='$\Delta \sigma_v$(km/s)')
     if plot_nii == True:
-        colorbar(res_mpb3,cax=ax[1][5],clim=res_flux_nii_lim,label='$\Delta$ (Flux(NII))')
+        colorbar(res_mpb3,cax=ax[1][5],clim=res_flux_nii_lim,label='$\Delta F(NII)/\sigma_{F(NII)}$')
         colorbar(res_mpb4,cax=ax[2][5],clim=res_nii_ha_lim)
     
     
