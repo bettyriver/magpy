@@ -81,7 +81,7 @@ def psf_img_to_gauss(img,plot=False,magpiid=None):
     
     if plot==True:
         
-        fig,ax = plt.subplots(1,4,figsize=(14,8))
+        fig,ax = plt.subplots(1,5,figsize=(18,8))
         
         max_v = np.max(img)
         min_v = np.min(img)
@@ -116,6 +116,12 @@ def psf_img_to_gauss(img,plot=False,magpiid=None):
         ax[3].plot(x,img[:,int(img.shape[0]/2+0.5)],label='img')
         ax[3].plot(x,t2[:,int(img.shape[0]/2+0.5)],label='fit')
         ax[3].legend()
+        
+        ax[4].plot(x,img[:,int(img.shape[0]/2+0.5)],label='img')
+        ax[4].plot(x,t2[:,int(img.shape[0]/2+0.5)],label='fit')
+        ax[4].set_ylim(0,0.002)
+        ax[4].legend()
+        
         plt.suptitle(str(magpiid))
         plt.show()
     
@@ -237,7 +243,7 @@ def psf_img_to_gauss_three(img,plot=False,magpiid=None):
     
     if plot==True:
         
-        fig,ax = plt.subplots(1,4,figsize=(14,8))
+        fig,ax = plt.subplots(1,5,figsize=(18,8))
         
         max_v = np.max(img)
         min_v = np.min(img)
@@ -265,6 +271,11 @@ def psf_img_to_gauss_three(img,plot=False,magpiid=None):
         ax[3].plot(x,img[:,int(img.shape[0]/2+0.5)],label='img')
         ax[3].plot(x,t2[:,int(img.shape[0]/2+0.5)],label='fit')
         ax[3].legend()
+        
+        ax[4].plot(x,img[:,int(img.shape[0]/2+0.5)],label='img')
+        ax[4].plot(x,t2[:,int(img.shape[0]/2+0.5)],label='fit')
+        ax[4].set_ylim(0,0.002)
+        ax[4].legend()
         
         plt.subplots_adjust(left=0.1,
                     bottom=0.1, 

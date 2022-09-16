@@ -482,9 +482,44 @@ class PreBlobby3D:
         modelfile.write('LINE\t6562.81\n')
         modelfile.write('LINE\t6583.1\t6548.1\t0.333\n')
         if flat_vdisp == True:
-            modelfile.write('VDISPN_SIGMA\t1.000000e-09')
+            modelfile.write('VDISPN_SIGMA\t1.000000e-09\n')
         
         modelfile.close()
+        
+    def dn4_options(self):
+        modelfile = open(self.save_path+"OPTIONS","w")
+        
+        
+        ha_sn_1d = self.ha_sn.flatten()
+        npixel = sum(ha_sn_1d >= 3)
+        if npixel <= 300:
+            iterations = 5000
+        elif npixel <= 400:
+            iterations = 7000
+        elif npixel <= 500:
+            iterations = 9000
+        elif npixel <= 800:
+            iterations = 11000
+        elif npixel <= 1000:
+            iterations = 15000
+        elif npixel <= 3000:
+            iterations = 20000
+        
+        modelfile.write('# File containing parameters for DNest4\n')
+        modelfile.write('# Put comments at the top, or at the end of the line.\n')
+        modelfile.write('1	# Number of particles\n')
+        modelfile.write('10000	# New level interval\n')
+        modelfile.write('10000	# Save interval\n')
+        modelfile.write('100	# Thread steps - how many steps each thread should do independently before communication\n')
+        modelfile.write('0	# Maximum number of levels\n')
+        modelfile.write('10	# Backtracking scale length (lambda in the paper)\n')
+        modelfile.write('100	# Strength of effect to force histogram to equal push (beta in the paper)\n')
+        modelfile.write('%d	# Maximum number of saves (0 = infinite)\n'%(iterations))
+        modelfile.write('sample.txt	# Sample file\n')
+        modelfile.write('sample_info.txt	# Sample info file\n')
+        modelfile.write('levels.txt	# Sample file\n')
+        modelfile.close()
+        
         
     def try_sth(self,w):
         print('hello')

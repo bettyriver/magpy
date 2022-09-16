@@ -123,7 +123,7 @@ def createSampleSeleccsv(fieldList,profoundPath,snpixelPath,savePath):
         inc = np.concatenate((inc,field_inc))
         sn3pixel = np.concatenate((sn3pixel,field_sn3pixel))
     
-    select = (redshift <= 0.424) & (inc >= 0) & (inc <= np.pi/3) & (sn3pixel>50)
+    select = (redshift <= 0.424) & (inc >= 0) & (inc <= np.pi/3) & (sn3pixel>100)
     
     magpiid = magpiid.astype(int)
     
