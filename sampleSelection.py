@@ -22,9 +22,26 @@ def snpixel(fitsfile,snlim):
     
     return npixel
 
-def inclination(semimaj,semimin):
+def inclination(semimaj,semimin,correction=False,q0=0.2):
     '''in rad'''
-    inc = np.arccos(semimin/semimaj)
+    inc = np.empty_like(semimaj)
+    inc[:] = np.nan
+    if correction==False:
+        inc = np.arccos(semimin/semimaj)
+    if correction==True:
+        
+        index1 = ((semimin/semimaj) >= q0)
+        
+        inc[index1] = np.arccos(np.sqrt(((semimin[index1]/semimaj[index1])**2 - q0**2)/(1 - q0**2)))
+        
+        index2 = ((semimin/semimaj) < q0)
+        
+        inc[index2] = np.arccos(0)
+        
+        
+        
+        
+    
     return inc
 
 
@@ -92,6 +109,7 @@ def createSampleSeleccsv(fieldList,profoundPath,snpixelPath,savePath):
     semimaj = []
     semimin = []
     inc = []
+    inc_correct = []
     sn3pixel = []
     select = []
     
@@ -105,6 +123,7 @@ def createSampleSeleccsv(fieldList,profoundPath,snpixelPath,savePath):
         field_semimaj = np.array(table1['semimaj'].tolist())
         field_semimin = np.array(table1['semimin'].tolist())
         field_inc = inclination(semimaj=field_semimaj, semimin=field_semimin)
+        field_inc_correct = inclination(semimaj=field_semimaj, semimin=field_semimin, correction=True)
         field_sn3pixel = []
         table2_id = np.array(table2['MAGPIID'].tolist())
         table2_sn = np.array(table2['sn3pixel'].tolist())
@@ -121,6 +140,7 @@ def createSampleSeleccsv(fieldList,profoundPath,snpixelPath,savePath):
         semimaj = np.concatenate((semimaj,field_semimaj))
         semimin = np.concatenate(( semimin,field_semimin))
         inc = np.concatenate((inc,field_inc))
+        inc_correct = np.concatenate((inc_correct,field_inc_correct))
         sn3pixel = np.concatenate((sn3pixel,field_sn3pixel))
     
     select = (redshift <= 0.424) & (inc >= 0) & (inc <= np.pi/3) & (sn3pixel>100)
@@ -133,6 +153,7 @@ def createSampleSeleccsv(fieldList,profoundPath,snpixelPath,savePath):
                        'semimaj':semimaj,
                        'semimin':semimin,
                        'inclination':inc,
+                       'inclination_correct':inc_correct,
                        'sn3pixel':sn3pixel,
                        'select':select})
     df.to_csv(savePath+'sampleSelection.csv')
