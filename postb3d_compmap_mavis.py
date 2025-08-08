@@ -27,7 +27,7 @@ import matplotlib as mpl
 
 def make_compmap_mavis(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=False,
                  set_title=None,vdispHist=False,vdispSFR=False,vdispSFRpath=None,
-                 vdispcolumn=None,sfrcolumn=None,set_ticks=False):
+                 vdispcolumn=None,sfrcolumn=None,set_ticks=False,set_fluxlim=None):
     '''
     compmap for mavis
     '''
@@ -177,6 +177,8 @@ def make_compmap_mavis(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_
     pct = 90
     
     flux_ha_lim = map_limits(data=con_flux_ha,pct=pct)
+    if set_fluxlim is not None:
+        flux_ha_lim = set_fluxlim
     
     vel_lim = map_limits(data=con_vel,pct=pct,absolute=True)
     vdisp_lim = map_limits(data=data_vdisp,pct=pct)
