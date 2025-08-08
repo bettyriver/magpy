@@ -23,7 +23,7 @@ from post_blobby3d import PostBlobby3D
 from moments import SpectralModel
  
 import matplotlib as mpl
-from astropy.io import fits
+
 
 def make_compmap_mavis(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=False,
                  set_title=None,vdispHist=False,vdispSFR=False,vdispSFRpath=None,
