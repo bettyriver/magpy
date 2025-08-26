@@ -24,6 +24,34 @@ from moments import SpectralModel
  
 import matplotlib as mpl
 
+def get_params(datapath):
+    '''
+    get the parameters of global parameters and blob parameters
+
+    Parameters
+    ----------
+    datapath : str
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    post_b3d = PostBlobby3D(
+            samples_path=datapath+'posterior_sample.txt',
+            data_path=datapath+'data.txt',
+            var_path=datapath+'var.txt',
+            metadata_path=datapath+'metadata.txt',
+            nlines=1)
+    
+    global_param = post_b3d.global_param
+    blob_param = post_b3d.blob_param
+    
+    global_param.to_csv(datapath+'global_param.csv')
+    blob_param.to_csv(datapath+'blob_param.csv')
+
 
 def make_compmap_mavis(datapath,figpath=None,flux_scale_factor=1,fwhm=None,plot_nii=False,
                  set_title=None,vdispHist=False,vdispSFR=False,vdispSFRpath=None,
